@@ -1,5 +1,5 @@
 # MySQL_GamingConsoleStore
-This repository contains SQL scripts to create and populate a fictional database for a gaming console store. The database, named GamingConsoleStore, models various aspects of the business, including customer information, subscriptions, products, employees, orders, and their relationships. The purpose of this project is to demonstrate the design of a relational database for managing a gaming console store's operations.
+This repository contains SQL scripts to create and populate a fictional database for a gaming console store. The database, named GamingConsoleStore, models various aspects of the business, including customer information, subscriptions, products, employees, orders, and their relationships. The primary purpose of this project is to demonstrate the design and implementation of a relational database, geared towards managing the operations of a gaming console store efficiently, and the use of advanced SQL queries for in-depth analysis and insight generation across different aspects, such as customer behavior, sales performance, and inventory management.
 
 Tables:
 1.	Customers: Stores customer information, including names, contact details, and addresses.
