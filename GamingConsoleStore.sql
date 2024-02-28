@@ -155,7 +155,12 @@ VALUES
     
 SELECT * FROM GamingConsoleStore.OrdersProducts ORDER BY OrderID;
 
+SHOW Tables;
 
+
+-- Queries for analysis
+
+-- Join Orders, Customers, and Products to display a complete view of orders
 SELECT Orders.OrderID, Customers.CustomerID, Customers.CusFirstName, Customers.CusLastName, Products.ProductID, Products.ProductName, Products.Price
 FROM GamingConsoleStore.Orders
 INNER JOIN GamingConsoleStore.Customers ON Orders.CustomerID = Customers.CustomerID
@@ -164,19 +169,15 @@ INNER JOIN GamingConsoleStore.Products ON OrdersProducts.ProductID = Products.Pr
 ORDER BY Orders.OrderID;
 
 
+-- Display customers with their subscription preferences
 SELECT Customers.CustomerID, Customers.CusFirstName, Customers.CusLastName, Subscriptions.SubscriptionID, Subscriptions.SubscriptionName
 FROM GamingConsoleStore.Customers
-LEFT OUTER JOIN GamingConsoleStore.CustomersSubscriptions ON Customers.CustomerID = CustomersSubscriptions.CustomerID
-LEFT OUTER JOIN GamingConsoleStore.Subscriptions ON CustomersSubscriptions.SubscriptionID = Subscriptions.SubscriptionID
+LEFT JOIN GamingConsoleStore.CustomersSubscriptions ON Customers.CustomerID = CustomersSubscriptions.CustomerID
+LEFT JOIN GamingConsoleStore.Subscriptions ON CustomersSubscriptions.SubscriptionID = Subscriptions.SubscriptionID
 ORDER BY Customers.CustomerID, Subscriptions.SubscriptionID;
 
 
-SELECT OrderID, CustomerID, TotalAmount
-FROM GamingConsoleStore.Orders
-WHERE TotalAmount = (SELECT MAX(TotalAmount) FROM GamingConsoleStore.Orders)
-ORDER BY OrderID;
-
-
+-- Identify customers who have at least one subscription
 SELECT CustomerID, CusFirstName, CusLastName
 FROM GamingConsoleStore.Customers
 WHERE CustomerID IN (
@@ -185,6 +186,7 @@ WHERE CustomerID IN (
 ORDER BY CustomerID;
 
 
+-- Aggregate order data by customer to analyze purchasing behavior
 SELECT Customers.CustomerID,
        CONCAT(Customers.CusFirstName, ' ', Customers.CusLastName) AS FullName,
        COUNT(DISTINCT Orders.OrderID) AS NumberOfOrders,
@@ -193,9 +195,49 @@ SELECT Customers.CustomerID,
 FROM GamingConsoleStore.Customers
 INNER JOIN GamingConsoleStore.Orders ON Customers.CustomerID = Orders.CustomerID
 GROUP BY Customers.CustomerID
-ORDER BY Customers.CustomerID;
+ORDER BY TotalAmountSpent DESC;
 
 
+-- Count of orders per customer to understand customer behavior
+SELECT Customers.CustomerID, COUNT(Orders.OrderID) AS NumberOfOrders
+FROM GamingConsoleStore.Customers
+INNER JOIN GamingConsoleStore.Orders ON Customers.CustomerID = Orders.CustomerID
+GROUP BY Customers.CustomerID
+ORDER BY NumberOfOrders DESC;
+
+
+-- Subscription trend analysis by counting customers per subscription type
+SELECT Subscriptions.SubscriptionName, COUNT(CustomersSubscriptions.CustomerID) AS NumberOfSubscribers
+FROM GamingConsoleStore.Subscriptions
+INNER JOIN GamingConsoleStore.CustomersSubscriptions ON Subscriptions.SubscriptionID = CustomersSubscriptions.SubscriptionID
+GROUP BY Subscriptions.SubscriptionName
+ORDER BY NumberOfSubscribers DESC;
+
+
+-- Segment customers based on their total spending
+SELECT CustomerID,
+       SUM(TotalAmount) AS TotalSpent,
+       CASE
+         WHEN SUM(TotalAmount) > 1000 THEN 'High Spender'
+         WHEN SUM(TotalAmount) BETWEEN 500 AND 1000 THEN 'Medium Spender'
+         ELSE 'Low Spender'
+       END AS SpendingCategory
+FROM GamingConsoleStore.Orders
+GROUP BY CustomerID
+ORDER BY TotalSpent DESC;
+
+
+-- Segment customers based on the type of products they purchase most frequently
+SELECT Customers.CustomerID, Products.Category, COUNT(OrdersProducts.ProductID) AS ProductCount
+FROM GamingConsoleStore.Customers
+INNER JOIN GamingConsoleStore.Orders ON Customers.CustomerID = Orders.CustomerID
+INNER JOIN GamingConsoleStore.OrdersProducts ON Orders.OrderID = OrdersProducts.OrderID
+INNER JOIN GamingConsoleStore.Products ON OrdersProducts.ProductID = Products.ProductID
+GROUP BY Customers.CustomerID, Products.Category
+ORDER BY ProductCount DESC;
+
+
+-- Find customers without subscriptions
 SELECT CustomerID, CusFirstName, CusLastName
 FROM GamingConsoleStore.Customers
 WHERE CustomerID NOT IN (
@@ -204,36 +246,54 @@ WHERE CustomerID NOT IN (
 ORDER BY CustomerID;
 
 
-SELECT OrderID, TotalAmount,
-    CASE
-        WHEN TotalAmount >= 450 THEN 'High Value'
-        WHEN TotalAmount >= 250 THEN 'Medium Value'
-        ELSE 'Low Value'
-    END AS OrderCategory
+-- Determine the top-selling products
+SELECT ProductName, Category, Count(OrdersProducts.ProductID) AS UnitsSold
+FROM GamingConsoleStore.Products
+INNER JOIN GamingConsoleStore.OrdersProducts ON Products.ProductID = OrdersProducts.ProductID
+GROUP BY ProductName, Category
+ORDER BY UnitsSold DESC;
+
+
+-- Calculate the average spend per order for each product category
+SELECT Category, AVG(CategoryTotal) AS AvgSpendPerOrderByCategory
+FROM (SELECT Orders.OrderID, Products.Category, SUM(Products.Price) AS CategoryTotal
+    FROM GamingConsoleStore.Orders
+    INNER JOIN GamingConsoleStore.OrdersProducts ON Orders.OrderID = OrdersProducts.OrderID
+    INNER JOIN GamingConsoleStore.Products ON OrdersProducts.ProductID = Products.ProductID
+    GROUP BY Orders.OrderID, Products.Category
+) AS OrderCategoryTotals
+GROUP BY Category;
+
+
+-- Rank customers based on their total spending
+SELECT CustomerID, RANK() OVER (ORDER BY SUM(TotalAmount) DESC) AS SpendingRank
 FROM GamingConsoleStore.Orders
-ORDER BY OrderID;
+GROUP BY CustomerID;
 
 
+-- Evalaute sales performance for each employee
+SELECT 
+    Employees.EmployeeID, 
+    CONCAT(Employees.FirstName, ' ', Employees.LastName) AS FullName, 
+    COUNT(Orders.OrderID) AS OrderCount,
+    SUM(Orders.TotalAmount) AS TotalSales
+FROM GamingConsoleStore.Employees
+INNER JOIN GamingConsoleStore.Orders ON Employees.EmployeeID = Orders.EmployeeID
+GROUP BY Employees.EmployeeID
+ORDER BY TotalSales DESC; 
 
-SELECT Customers.CustomerID, Customers.CusFirstName, Customers.CusLastName
-FROM GamingConsoleStore.Customers
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM GamingConsoleStore.CustomersSubscriptions
-    WHERE Customers.CustomerID = CustomersSubscriptions.CustomerID)
-ORDER BY Customers.CustomerID;
 
-
-
-SELECT CustomerID, CusFirstName, CusLastName
-FROM GamingConsoleStore.Customers
-WHERE CustomerID IN (
-	SELECT Customers.CustomerID
-    FROM GamingConsoleStore.Customers
-    LEFT OUTER JOIN GamingConsoleStore.CustomersSubscriptions ON Customers.CustomerID = CustomersSubscriptions.CustomerID
-    LEFT OUTER JOIN GamingConsoleStore.Subscriptions ON CustomersSubscriptions.SubscriptionID = Subscriptions.SubscriptionID
-    WHERE Subscriptions.SubscriptionName IS NOT NULL)
-ORDER BY CustomerID;
-
-    
-
+-- Analyze the impact of subscriptions on customer spending behavior
+SELECT 
+    'Subscribed' AS SubscriptionStatus,
+    COUNT(DISTINCT CustomerID) AS CustomerCount,
+    AVG(TotalAmount) AS AverageOrderValue
+FROM GamingConsoleStore.Orders
+WHERE CustomerID IN (SELECT CustomerID FROM GamingConsoleStore.CustomersSubscriptions)
+UNION ALL
+SELECT 
+    'Not Subscribed' AS SubscriptionStatus,
+    COUNT(DISTINCT CustomerID) AS CustomerCount,
+    AVG(TotalAmount) AS AverageOrderValue
+FROM GamingConsoleStore.Orders
+WHERE CustomerID NOT IN (SELECT CustomerID FROM GamingConsoleStore.CustomersSubscriptions);
